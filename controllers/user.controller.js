@@ -7,14 +7,15 @@ const secret_key = db.secret_key;
 
 
 // register user- signup
-exports.register = async (req, res) =>{
+exports.signup = async (req, res) =>{
     try{
         // get user input
-        const { firstName, lastName, email, password} = req.body;
+        const { firstName, lastName, email, password, role} = req.body;
     
         // validate user input
         if(!(email && password && firstName && lastName)){
             res.status(400).send("All input is required");
+            return;
         }
     
         // check if user already exist
@@ -30,10 +31,12 @@ exports.register = async (req, res) =>{
     
         // create user in our database
         const user = await User.create({
-            first_name: firstName,
-            last_name: lastName,
+            firstName: firstName,
+            lastName: lastName,
             email: email.toLowerCase(),
-            password: encryptedUserPassword
+            password: encryptedUserPassword,
+            role: role ? role : 'user',
+            isLoggedIn : true
         });
     
         // create token
@@ -49,7 +52,7 @@ exports.register = async (req, res) =>{
         // user.token = token;
     
         // return new user
-        res.status(201).json(user);
+        return res.status(201).json(user);
     }
     catch(error){
         console.log(error);
@@ -65,8 +68,9 @@ exports.login = async(req,res) =>{
         // validate user input
         if(!(email && password)){
             res.status(400).send("All input is required!!!");
+            return;
         }
-
+        
         // validate if user exists in our database
         const user = await User.findOne({email});
 
@@ -81,14 +85,62 @@ exports.login = async(req,res) =>{
             );
             // save user token
             user.token = token;
-            return res.status(200).json(user);
+            user.isLoggedIn = true;
+            try{
+                let userUpdated = await User.findOneAndUpdate(user);
+                res.status(200).send({
+                    "firstName": userUpdated.firstName,
+                    "lastName": userUpdated.lastName,
+                    "email": userUpdated.email,
+                    "isLoggedIn": userUpdated.isLoggedIn,
+                    "role": userUpdated.role,
+                    "id": userUpdated.id,
+                    "token": userUpdated.token
+                });
+            }
+            catch(err){
+                res.status(500).send({
+                    message: err.message
+                });
+            }
         }
-    return res.status(400).send("Invalid credentials!!!!");
+        res.status(400).send("Invalid credentials!!!!");
+        
     }
     catch(err){
-        console.log(err);
+        res.status(500).send({
+            message: err.message
+        });
     }
 };
+
+// logout - update isLoggedIn parameter of the user
+exports.logout = async (req, res) =>{
+    // validate req
+    if(!req.body.id){
+        res.status(401).send({message: "Please provide user credentials to logout"});
+        return;
+    }    
+    try{
+        const id = req.body.id;
+        const update = { isLoggedIn : false};
+
+        let data = await User.findByIdAndUpdate(id, update,{});
+        res.status(200).send({
+            message: "Logged out successfully!!",
+            "firstName": data.firstName,
+            "lastName": data.lastName, 
+            "email": data.email,
+            "isLoggedIn": data.isLoggedIn,
+            "role": data.role,
+            "id": data.id
+        });        
+    } catch(err) {
+        res.status(404).send({
+            message: "User Not Found -Logout failed!!"
+        });
+    }
+}; 
 
 // welcoming the login user
 exports.welcome = (req, res) =>{

@@ -5,10 +5,13 @@ module.exports = app =>{
     let router = require("express").Router();
 
     // register
-    router.post("/register", user.register);
+    router.post("/signup", user.signup);
 
     // login
     router.post("/login", user.login);
+
+    // logout
+    router.post("/logout", user.logout);
 
     // welcome
     router.post("/welcome", auth , user.welcome);
